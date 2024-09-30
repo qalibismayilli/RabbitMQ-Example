@@ -22,7 +22,7 @@ public class Account {
 
     private City city;
 
-    private BigDecimal balance;
+    private Double balance;
 
     private Currency currency;
 
