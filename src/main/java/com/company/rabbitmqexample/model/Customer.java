@@ -1,23 +1,24 @@
 package com.company.rabbitmqexample.model;
 
 import jakarta.persistence.*;
+import lombok.Data;
 import org.hibernate.annotations.UuidGenerator;
 
-import java.util.Set;
-import java.util.UUID;
+import java.util.ArrayList;
+import java.util.List;
 
-@Table(name = "customers")
+@Entity
+@Data
 public class Customer {
+
     @Id
     @UuidGenerator
-    private UUID id;
+    private String id;
 
-    @Column(name = "name")
     private String name;
 
-    @Column(name = "surname")
-    private String surname;
+    private City City;
 
     @OneToMany(mappedBy = "customer", fetch = FetchType.LAZY)
-    private Set<Account> accounts;
+    private List<Account> accounts = new ArrayList<>();
 }

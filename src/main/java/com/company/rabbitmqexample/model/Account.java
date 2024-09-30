@@ -1,29 +1,33 @@
 package com.company.rabbitmqexample.model;
 
 import jakarta.persistence.*;
-import org.hibernate.annotations.CreationTimestamp;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
 import org.hibernate.annotations.UuidGenerator;
-
 import java.math.BigDecimal;
-import java.time.LocalDateTime;
 import java.util.UUID;
 
 @Entity
+@Data
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
 public class Account {
 
     @Id
     @UuidGenerator
     private UUID id;
 
-    @CreationTimestamp
-    @Column(name = "created_date")
-    private LocalDateTime createdDate;
+    private City city;
 
-    @Column(name = "balance")
     private BigDecimal balance;
 
+    private Currency currency;
+
     @ManyToOne(fetch = FetchType.LAZY, cascade = CascadeType.ALL)
-    @JoinColumn(name = "customer_id", nullable = false)
+    @JoinColumn(name = "customer_id")
     private Customer customer;
 
 }
