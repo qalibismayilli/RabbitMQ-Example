@@ -13,9 +13,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import javax.validation.constraints.NotNull;
-import java.math.BigDecimal;
-import java.util.Optional;
-import java.util.UUID;
+
 
 @Service
 public class AccountService {
@@ -38,7 +36,7 @@ public class AccountService {
         this.rabbitTemplate = rabbitTemplate;
     }
 
-    private AccountResponse convertToResponse(Account account){
+    private AccountResponse convertToResponse(Account account) {
         return new AccountResponse(account.getId(),
                 account.getCustomer().getId(),
                 account.getBalance().doubleValue(),
@@ -65,25 +63,52 @@ public class AccountService {
         return convertToResponse(account);
     }
 
+    @Transactional
     @CacheEvict(value = "accounts", allEntries = true)
-    public void deleteAccount(String accountId){
+    public void deleteAccount(String accountId) {
         accountRepository.deleteById(accountId);
     }
 
-    public void transferMoney(){
+    @Transactional
+    public AccountResponse addMoney(String accountId, double amount){
+        Account account = accountRepository
+                .findById(accountId).orElseThrow(() -> new RuntimeException("Account Not Found"));
 
+        account.setBalance(account.getBalance() + amount);
+
+        return convertToResponse(accountRepository.save(account));
     }
 
-    public AccountResponse withdrawMoney(String accountId, Double amount){
+    @Transactional
+    public void transferMoney(String fromAccountId, String toAccountId, Double amount) {
+        Account fromAccount = accountRepository
+                .findById(fromAccountId).orElseThrow(() -> new RuntimeException("fromAccount Not Found"));
 
-        Account account =  accountRepository.
+        Account toAccount = accountRepository
+                .findById(toAccountId).orElseThrow(() -> new RuntimeException("toAccount Not Found"));
+
+        if (fromAccount.getBalance().compareTo(amount) < 0) {
+            throw new RuntimeException("fromAccount Balance is less than amount");
+        } else {
+            fromAccount.setBalance(fromAccount.getBalance() - amount);
+            toAccount.setBalance(toAccount.getBalance() + amount);
+
+            accountRepository.save(fromAccount);
+            accountRepository.save(toAccount);
+        }
+    }
+
+    @Transactional
+    public AccountResponse withdrawMoney(String accountId, Double amount) {
+
+        Account account = accountRepository.
                 findById(accountId).
                 orElseThrow(() -> new RuntimeException("Account Not Found"));
 
-        if(account.getBalance().compareTo(amount) < 0){
+        if (account.getBalance().compareTo(amount) < 0) {
             throw new RuntimeException("Insufficient Funds!");
-        }else{
-            account.setBalance(account.getBalance()-amount);
+        } else {
+            account.setBalance(account.getBalance() - amount);
             return convertToResponse(accountRepository.save(account));
         }
     }

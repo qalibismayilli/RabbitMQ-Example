@@ -3,8 +3,6 @@ package com.company.rabbitmqexample.api;
 import com.company.rabbitmqexample.dto.AccountResponse;
 import com.company.rabbitmqexample.dto.CreateAccountRequest;
 import com.company.rabbitmqexample.service.AccountService;
-import org.springframework.amqp.core.AmqpTemplate;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -30,13 +28,19 @@ public class AccountController {
         accountService.deleteAccount(accountId);
     }
 
-    @PostMapping("/withdrawMoney")
+    @PutMapping("/withdrawMoney")
     public ResponseEntity<AccountResponse> withdrawMoney(String accountId, Double amount){
         return ResponseEntity.ok(accountService.withdrawMoney(accountId, amount));
     }
 
     @PutMapping("/transfer")
-    public void transferMoney(){
-        accountService.transferMoney();
+    public ResponseEntity<Void> transferMoney(String fromAccountId, String toAccountId, Double amount){
+        accountService.transferMoney(fromAccountId, toAccountId, amount);
+        return ResponseEntity.ok().build();
+    }
+
+    @PutMapping("/addMoney")
+    public ResponseEntity<AccountResponse> addMoney(String accountId, Double amount){
+        return ResponseEntity.ok(accountService.addMoney(accountId, amount));
     }
 }
