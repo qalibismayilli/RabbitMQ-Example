@@ -2,6 +2,7 @@ package com.company.rabbitmqexample.api;
 
 import com.company.rabbitmqexample.dto.AccountResponse;
 import com.company.rabbitmqexample.dto.CreateAccountRequest;
+import com.company.rabbitmqexample.dto.MoneyTransferRequest;
 import com.company.rabbitmqexample.service.AccountService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -29,13 +30,13 @@ public class AccountController {
     }
 
     @PutMapping("/withdrawMoney")
-    public ResponseEntity<AccountResponse> withdrawMoney(String accountId, Double amount){
+    public ResponseEntity<AccountResponse> withdrawMoney(@RequestParam String accountId,@RequestParam Double amount){
         return ResponseEntity.ok(accountService.withdrawMoney(accountId, amount));
     }
 
     @PutMapping("/transfer")
-    public ResponseEntity<Void> transferMoney(String fromAccountId, String toAccountId, Double amount){
-        accountService.transferMoney(fromAccountId, toAccountId, amount);
+    public ResponseEntity<Void> transferMoney(@RequestBody MoneyTransferRequest request){
+        accountService.transferMoney(request);
         return ResponseEntity.ok().build();
     }
 

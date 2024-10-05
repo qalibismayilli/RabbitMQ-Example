@@ -2,17 +2,24 @@ package com.company.rabbitmqexample.service;
 
 import com.company.rabbitmqexample.dto.AccountResponse;
 import com.company.rabbitmqexample.dto.CreateAccountRequest;
+import com.company.rabbitmqexample.dto.MoneyTransferRequest;
 import com.company.rabbitmqexample.model.Account;
 import com.company.rabbitmqexample.model.Currency;
 import com.company.rabbitmqexample.model.Customer;
 import com.company.rabbitmqexample.repository.AccountRepository;
 import org.springframework.amqp.core.AmqpTemplate;
+import org.springframework.amqp.core.DirectExchange;
+import org.springframework.amqp.core.Exchange;
+import org.springframework.amqp.rabbit.annotation.RabbitListener;
+import org.springframework.amqp.rabbit.annotation.RabbitListeners;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.CachePut;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import javax.validation.constraints.NotNull;
+import java.util.Optional;
 
 
 @Service
@@ -21,7 +28,8 @@ public class AccountService {
     private final AccountRepository accountRepository;
     private final CustomerService customerService;
 
-    private final AmqpTemplate rabbitTemplate;
+    private final DirectExchange exchange;
+    private final AmqpTemplate amqpTemplate;
 
     @Value("${sample.rabbitmq.routingKey}")
     String routingKey;
@@ -30,10 +38,12 @@ public class AccountService {
     String queueName;
 
 
-    public AccountService(AccountRepository accountRepository, CustomerService customerService, AmqpTemplate rabbitTemplate) {
+    public AccountService(AccountRepository accountRepository, CustomerService customerService,
+                          DirectExchange exchange, AmqpTemplate rabbitTemplate) {
         this.accountRepository = accountRepository;
         this.customerService = customerService;
-        this.rabbitTemplate = rabbitTemplate;
+        this.exchange = exchange;
+        this.amqpTemplate = rabbitTemplate;
     }
 
     private AccountResponse convertToResponse(Account account) {
@@ -44,7 +54,7 @@ public class AccountService {
     }
 
     @Transactional
-    @CacheEvict(value = "accounts", allEntries = true)
+    @CachePut(value = "accounts", key = "#id")
     public AccountResponse createAccount(@NotNull CreateAccountRequest request) {
         Customer customer = customerService.findCustomerById(request.getCustomerId());
 
@@ -70,7 +80,7 @@ public class AccountService {
     }
 
     @Transactional
-    public AccountResponse addMoney(String accountId, double amount){
+    public AccountResponse addMoney(String accountId, double amount) {
         Account account = accountRepository
                 .findById(accountId).orElseThrow(() -> new RuntimeException("Account Not Found"));
 
@@ -80,22 +90,59 @@ public class AccountService {
     }
 
     @Transactional
-    public void transferMoney(String fromAccountId, String toAccountId, Double amount) {
+    public void transferMoney(MoneyTransferRequest request) {
+        amqpTemplate.convertAndSend(exchange.getName(), routingKey, request);
+    }
+
+    @Transactional
+    @RabbitListener(queues = "${sample.rabbitmq.queue}")
+    public void transferMoneyMessage(MoneyTransferRequest request) {
         Account fromAccount = accountRepository
-                .findById(fromAccountId).orElseThrow(() -> new RuntimeException("fromAccount Not Found"));
-
-        Account toAccount = accountRepository
-                .findById(toAccountId).orElseThrow(() -> new RuntimeException("toAccount Not Found"));
-
-        if (fromAccount.getBalance().compareTo(amount) < 0) {
+                .findById(request.getFromId()).orElseThrow(() -> new RuntimeException("fromAccount Not Found"));
+        if (fromAccount.getBalance().compareTo(request.getAmount()) < 0) {
             throw new RuntimeException("fromAccount Balance is less than amount");
         } else {
-            fromAccount.setBalance(fromAccount.getBalance() - amount);
-            toAccount.setBalance(toAccount.getBalance() + amount);
-
+            fromAccount.setBalance(fromAccount.getBalance() - request.getAmount());
             accountRepository.save(fromAccount);
-            accountRepository.save(toAccount);
+            amqpTemplate.convertAndSend(exchange.getName(), "secondRoute", request);
         }
+    }
+
+    @Transactional
+    @RabbitListener(queues = "secondStepQueue")
+    public void updateReceiverAccount(MoneyTransferRequest request) {
+        Optional<Account> toAccount = accountRepository.findById(request.getToId());
+
+        toAccount.ifPresentOrElse(account -> {
+            account.setBalance(account.getBalance() + request.getAmount());
+            accountRepository.save(account);
+            amqpTemplate.convertAndSend(exchange.getName(), "thirdRoute", request);
+        }, () -> {
+            Optional<Account> fromAccount = accountRepository.findById(request.getToId());
+            fromAccount.ifPresent(account -> {
+                System.out.println("Money charge back to sender");
+                account.setBalance(account.getBalance() + request.getAmount());
+                accountRepository.save(account);
+            });
+            throw new RuntimeException("Account Not Found");
+        });
+    }
+
+    @Transactional
+    @RabbitListener(queues = "thirdStepQueue")
+    public void finalizeTransferMoney(MoneyTransferRequest request) {
+        Optional<Account> fromAccount = accountRepository.findById(request.getFromId());
+        fromAccount.ifPresentOrElse(account ->
+                        System.out.println("Sender(" + account.getId() +
+                                ") new account balance: " + account.getBalance()),
+                () -> new RuntimeException("Sender not found"));
+
+        Optional<Account> toAccount = accountRepository.findById(request.getToId());
+        toAccount.ifPresentOrElse(account ->
+                        System.out.println("Receiver(" + account.getId() +
+                                ") new account balance: " + account.getBalance()),
+                () -> new RuntimeException("Sender not found"));
+
     }
 
     @Transactional
