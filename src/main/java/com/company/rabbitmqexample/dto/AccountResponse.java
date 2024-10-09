@@ -5,14 +5,13 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 
 import java.io.Serializable;
-import java.math.BigDecimal;
 import java.util.UUID;
 
 @Data
 @AllArgsConstructor
 public class AccountResponse implements Serializable {
 
-    private UUID id;
+    private String id;
     private String customerId;
     private Double balance;
     private Currency currency;

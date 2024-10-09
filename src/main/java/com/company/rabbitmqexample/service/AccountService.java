@@ -4,14 +4,11 @@ import com.company.rabbitmqexample.dto.AccountResponse;
 import com.company.rabbitmqexample.dto.CreateAccountRequest;
 import com.company.rabbitmqexample.dto.MoneyTransferRequest;
 import com.company.rabbitmqexample.model.Account;
-import com.company.rabbitmqexample.model.Currency;
 import com.company.rabbitmqexample.model.Customer;
 import com.company.rabbitmqexample.repository.AccountRepository;
 import org.springframework.amqp.core.AmqpTemplate;
 import org.springframework.amqp.core.DirectExchange;
-import org.springframework.amqp.core.Exchange;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
-import org.springframework.amqp.rabbit.annotation.RabbitListeners;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.CachePut;
@@ -63,9 +60,10 @@ public class AccountService {
         }
 
         Account account = Account.builder()
+                .id(request.getId())
                 .city(customer.getCity())
-                .balance(0.0)
-                .currency(Currency.USD)
+                .balance(request.getBalance())
+                .currency(request.getCurrency())
                 .customer(customer)
                 .build();
 
@@ -117,7 +115,8 @@ public class AccountService {
             account.setBalance(account.getBalance() + request.getAmount());
             accountRepository.save(account);
             amqpTemplate.convertAndSend(exchange.getName(), "thirdRoute", request);
-        }, () -> {
+        },
+                () -> {
             Optional<Account> fromAccount = accountRepository.findById(request.getToId());
             fromAccount.ifPresent(account -> {
                 System.out.println("Money charge back to sender");
