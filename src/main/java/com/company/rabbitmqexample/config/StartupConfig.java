@@ -51,21 +51,18 @@ public class StartupConfig implements CommandLineRunner {
         customerRepository.saveAll(Arrays.asList(c1,c2,c3));
 
 
-        accountService.createAccount(CreateAccountRequest.builder().
-                id("1234")
+        accountService.createAccount(CreateAccountRequest.builder()
                 .customerId(c1.getId())
                 .balance(1320.0)
                 .currency(Currency.USD)
                 .build());
 
-        accountService.createAccount(CreateAccountRequest.builder().
-                id("3455")
+        accountService.createAccount(CreateAccountRequest.builder()
                 .customerId(c2.getId())
                 .balance(7898.0)
                 .currency(Currency.USD)
                 .build());
-        accountService.createAccount(CreateAccountRequest.builder().
-                id("6789")
+        accountService.createAccount(CreateAccountRequest.builder()
                 .customerId(c3.getId())
                 .balance(120000.0)
                 .currency(Currency.USD)

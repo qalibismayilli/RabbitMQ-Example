@@ -16,6 +16,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import javax.validation.constraints.NotNull;
+import java.util.List;
 import java.util.Optional;
 
 
@@ -158,4 +159,16 @@ public class AccountService {
             return convertToResponse(accountRepository.save(account));
         }
     }
+
+    public AccountResponse getAccountById(String accountId){
+        Account account = accountRepository.
+                findById(accountId).orElseThrow(() -> new RuntimeException("not fount account this id"));
+
+        return convertToResponse(account);
+    }
+
+    public List<AccountResponse> getAllAccounts(){
+        return accountRepository.findAll().stream().map(account ->convertToResponse(account)).toList();
+    }
+
 }
